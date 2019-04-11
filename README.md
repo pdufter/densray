@@ -30,6 +30,4 @@ If you use the code, please cite
 
 
 # TODO
-test on paper
 test public repo
-Upload Code

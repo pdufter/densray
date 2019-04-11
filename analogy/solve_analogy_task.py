@@ -38,6 +38,7 @@ config['logger'] = get_logger('lexind', config['store'] + ".log")
 
 dump_dict(config, config['store'] + "," + os.path.basename(__file__) + ",config.json")
 config['logger'].info("Solving Analogy task.")
+
 ###################
 # DATA
 embeds = Embeddings(config['logger'])
@@ -152,3 +153,4 @@ for chapter in sorted(set(analogy.tuples) & set(corrects)):
     for true, predicted, label in zip(trues[chapter], predictions[chapter], corrects[chapter]):
         outfile.write(true[0] + "-" + true[1][0] + "\t" + predicted[0] + "-" + predicted[1] + "\t" + str(label) + "\n")
 outfile.close()
+    
