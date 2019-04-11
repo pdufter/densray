@@ -1,6 +1,6 @@
 ### Introduction
 
-This repository compares different methods of obtaining interpretabel dimension in word embedding spaces. 
+This repository compares different methods of obtaining interpretable dimension in word embedding spaces. 
 
 More specifically it compares: 
 * [Densifier](https://arxiv.org/pdf/1602.07572.pdf)
@@ -26,8 +26,3 @@ If you use the code, please cite
 ```
 @article{}
 ```
-
-
-
-# TODO
-test public repo
