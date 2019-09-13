@@ -1,5 +1,7 @@
 manual/*
 .DS_Store
+DONOTMODIFYTHISREPO
+.gitignore
 
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python

@@ -23,11 +23,12 @@ parser.add_argument("--analogies", type=str, default="/mounts/work/philipp/data/
 parser.add_argument("--bats", type=str2bool, default=True, help="")
 
 parser.add_argument("--method", type=str, default="regression,svm", help="")
-parser.add_argument("--pred_method", type=str, default="clcomp", help="")
+parser.add_argument("--pred_method", type=str, default=None, help="")
+parser.add_argument("--use_compl", type=str2bool, default=False, help="")
+parser.add_argument("--use_prob", type=str2bool, default=True, help="")
 
 parser.add_argument("--store", type=str, default="", help="")
 
-parser.add_argument("--use_proba", type=str2bool, default=False, help="")
 
 ###################
 # PARSE ARGUMENTS
@@ -65,6 +66,8 @@ dists = defaultdict(lambda: defaultdict(list))
 
 for chapter in analogy.tuples:
     ap = AnalogyPredictor(config['logger'], embeds, analogy.tuples[chapter])
+    ap.get_lexicon()
+
     ranks, intersim, intrasim0, intrasim1 = ap.get_distances()
 
     dists[chapter]['intersim'].extend(intersim.tolist())
@@ -102,13 +105,14 @@ corrects = defaultdict(list)
 # for each class solve the problem and get predictions
 modeltype, model = config['method'].split(",")
 for chapter in analogy.tuples:
-    # if chapter != "E01 [country - capital].txt":
+    #if chapter != "D02 [un+adj_reg].txt":
     #    continue
-    #    import ipdb; ipdb.set_trace();
+    #    #import ipdb; ipdb.set_trace();
     config['logger'].info(chapter)
-    n_test = 2
+    n_test = 1
     # filter tuples
-    ap = AnalogyPredictor(config['logger'], embeds, analogy.tuples[chapter])
+    ap = AnalogyPredictor(config['logger'], embeds, analogy.tuples[chapter], donotfilter=False)
+    ap.get_lexicon()
     rel_tuples = ap.ana
 
     # do cross validation
@@ -116,9 +120,19 @@ for chapter in analogy.tuples:
         tuples_train = rel_tuples[:i] + rel_tuples[i + n_test:]
         tuples_test = rel_tuples[i:i + n_test]
 
-        ap = AnalogyPredictor(config['logger'], embeds, tuples_train)
+        # Remove train/test overlap on word level
+        test_words = set()
+        for x in tuples_test:
+            test_words.update([x[0]])
+            test_words.update([w for w in x[1]])
+
+        ap = AnalogyPredictor(config['logger'], embeds, tuples_train, donotfilter=False)
+        ap.get_lexicon(remove_words=test_words)
         ap.fit_classifier(modeltype, model)
-        answer = ap.predict([x[0] for x in tuples_test], method=config['pred_method'])
+
+        # TODO(pdufter) This line should be redudant.
+        tuples_test = [x for x in tuples_test if x[0] in embeds.Wset]
+        answer = ap.predict([x[0] for x in tuples_test], method=config['pred_method'], use_compl=config['use_compl'], use_prob=config['use_prob'])
 
         assert all([x[0] == y[0] for (x, y) in zip(tuples_test, answer)]), "Inconsistencies in queries."
 

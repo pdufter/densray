@@ -6,18 +6,19 @@ from sklearn.svm import SVR, SVC
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.cross_decomposition import CCA
 from scipy.linalg import null_space
+from scipy import stats
 from tqdm import tqdm
 from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
 
 from utils.utils import store
-from data.data import Lexicon
+from data.data import Lexicon, Embeddings
 
 
 class Densifier(object):
     """Python wrapper of Densifier Matlab Implementation
 
-    To obtain the Matlab implementaiton, contact the authors of
+    To obtain the Matlab implementation, contact the authors of
     https://arxiv.org/pdf/1602.07572.pdf
     """
 
@@ -35,7 +36,8 @@ class Densifier(object):
         self.Ltrain = Ltrain
         self.Ltest = Ltest
         self.matlab_path = "/mounts/Users/cisintern/philipp/Dokumente/FeatureCat/"
-        assert os.path.exists(self.matlab_path), "No Matlab implementation for Densifer found. Please clone git@github.com:pdufter/FeatureCat.git and specify the corresponding directory in this class."
+        assert os.path.exists(
+            self.matlab_path), "No Matlab implementation for Densifer found. Please clone git@github.com:pdufter/FeatureCat.git and specify the corresponding directory in this class."
 
     def prepare_data(self, path):
         """Stores the training data on disk to make it accessible to matlab
@@ -59,7 +61,8 @@ class Densifier(object):
         The output of matlab is store on disk.
         """
         self.log.info("Calling Densifier through commandline.")
-        command = """matlab -r 'addpath(\"{}\");FeatureCat(\"{}\", {}, \"{}\", \"{}\", \"{}\");quit;' """.format(self.matlab_path, self.embedding_path, self.line_count, self.ltrain_path, self.ltest_path, self.outfilename)
+        command = """matlab -r 'addpath(\"{}\");FeatureCat(\"{}\", {}, \"{}\", \"{}\", \"{}\");quit;' """.format(
+            self.matlab_path, self.embedding_path, self.line_count, self.ltrain_path, self.ltest_path, self.outfilename)
         os.system(command)
 
 
@@ -99,7 +102,8 @@ class DensRay(object):
             self.computeA_binary_part2(weights=weights)
         elif model == 'continuous':
             self.prepare_data_continuous()
-            self.computeA_continuous(normalize_D=normalize_D, normalize_labels=normalize_labels)
+            self.computeA_continuous(
+                normalize_D=normalize_D, normalize_labels=normalize_labels)
         else:
             raise NotImplementedError
         self.compute_trafo()
@@ -109,7 +113,8 @@ class DensRay(object):
 
         It selects the relevant vectors from the embedding space.
         """
-        Lrel = [(k, v) for k, v in self.lexic.L['countable'] if k in self.embed.Wset]
+        Lrel = [(k, v)
+                for k, v in self.lexic.L['countable'] if k in self.embed.Wset]
         values = set([v for k, v in Lrel])
         assert len(values) == 2
         v1, v2 = values
@@ -131,10 +136,13 @@ class DensRay(object):
         It selects the relevant vectors from the embedding space.
         """
         if len(self.lexic.L['continuous']) == 0:
-            self.log.warning("No continuous labels available, using countable labels instead.")
+            self.log.warning(
+                "No continuous labels available, using countable labels instead.")
             self.lexic.L['continuous'] = self.lexic.L['countable']
-        self.Wrel = [k for k, v in self.lexic.L['continuous'] if k in self.embed.Wset]
-        self.scoresrel = np.array([v for k, v in self.lexic.L['continuous'] if k in self.Wrel])
+        self.Wrel = [k for k, v in self.lexic.L['continuous']
+                     if k in self.embed.Wset]
+        self.scoresrel = np.array(
+            [v for k, v in self.lexic.L['continuous'] if k in self.Wrel])
         self.Xrel = self.embed.X[[self.embed.W.index(x) for x in self.Wrel]]
 
     @staticmethod
@@ -191,12 +199,16 @@ class DensRay(object):
         self.A_unequal = np.zeros((dim, dim))
         for ipos in tqdm(range(self.npos), desc="compute matrix part1", leave=False):
             v = self.Xpos[ipos:ipos + 1, :].transpose()
-            self.A_equal += self.outer_product_sub_binary(v, self.Xpos, normalize_D)
-            self.A_unequal += self.outer_product_sub_binary(v, self.Xneg, normalize_D)
+            self.A_equal += self.outer_product_sub_binary(
+                v, self.Xpos, normalize_D)
+            self.A_unequal += self.outer_product_sub_binary(
+                v, self.Xneg, normalize_D)
         for ineg in tqdm(range(self.nneg), desc="compute matrix part2", leave=False):
             v = self.Xneg[ineg:ineg + 1, :].transpose()
-            self.A_equal += self.outer_product_sub_binary(v, self.Xneg, normalize_D)
-            self.A_unequal += self.outer_product_sub_binary(v, self.Xpos, normalize_D)
+            self.A_equal += self.outer_product_sub_binary(
+                v, self.Xneg, normalize_D)
+            self.A_unequal += self.outer_product_sub_binary(
+                v, self.Xpos, normalize_D)
 
     def computeA_binary_part2(self, weights=None):
         """Second part of computing the matrix A.
@@ -206,7 +218,8 @@ class DensRay(object):
                 summands; if none: apply dynamic weighting. Example input: [1.0, 1.0]
         """
         if weights is None:
-            weights = [1 / (2 * self.npos * self.nneg), 1 / (self.npos**2 + self.nneg**2)]
+            weights = [1 / (2 * self.npos * self.nneg), 1 /
+                       (self.npos**2 + self.nneg**2)]
         # normalize matrices for numerical reasons
         # note that this does not change the eigenvectors
         n1 = self.A_unequal.max()
@@ -231,7 +244,8 @@ class DensRay(object):
             gammas = (gammas - gammas.mean()) / gammas.std()
         for i, w in tqdm(enumerate(self.Wrel), desc="compute matrix", leave=False):
             v = self.Xrel[i:i + 1, :].transpose()
-            self.A += self.outer_product_sub_continuous(v, self.Xrel, i, gammas, normalize_D)
+            self.A += self.outer_product_sub_continuous(
+                v, self.Xrel, i, gammas, normalize_D)
         self.A = - self.A / self.A.max()
 
     def compute_trafo(self):
@@ -246,7 +260,8 @@ class DensRay(object):
         idx = self.eigvals.argsort()[::-1]
         self.eigvals, self.eigvecs = self.eigvals[idx], self.eigvecs[:, idx]
         self.T = self.eigvecs
-        assert np.allclose(self.T.transpose().dot(self.T), np.eye(self.T.shape[0])), "self.T not orthonormal."
+        assert np.allclose(self.T.transpose().dot(self.T), np.eye(
+            self.T.shape[0])), "self.T not orthonormal."
 
 
 class Regression(object):
@@ -269,7 +284,7 @@ class Regression(object):
         self.embed = Embeddings
         self.lexic = Lexicon
 
-    def prepare_data(self, model):
+    def prepare_data(self, model, add_random_words=False):
         """Prepare the data (i.e. select vectors and create labels)
 
         Args:
@@ -289,6 +304,16 @@ class Regression(object):
                 idxs.append(self.embed.W.index(k))
                 ys.append(v)
                 words.append(k)
+        if add_random_words:
+            n_add = sum([y == 1 for y in ys])
+            idx_to_add = np.random.choice(len(self.embed.Wset), n_add)
+            words_to_add = [self.embed.W[x] for x in idx_to_add]
+            ys_to_add = [0] * n_add
+
+            idxs.extend(idx_to_add)
+            ys.extend(ys_to_add)
+            words.extend(words_to_add)
+
         self.Wrel = words
         self.Xrel = self.embed.X[idxs, :]
         self.Yrel = np.array(ys)
@@ -306,13 +331,16 @@ class Regression(object):
         if model == 'linear':
             self.mod = LinearRegression()
         elif model == 'logistic':
-            self.mod = LogisticRegression()
+            self.mod = LogisticRegression(
+                penalty='none', class_weight='balanced', solver='saga')
+            #self.mod = LogisticRegression()
         elif model == 'svr':
             self.mod = SVR(kernel='linear')
         elif model == 'svm':
             self.mod = SVC(C=1.0, kernel='linear')
         elif model == 'cca':
-            self.mod = CCA(n_components=1, scale=True, max_iter=500, tol=1e-06, copy=True)
+            self.mod = CCA(n_components=1, scale=True,
+                           max_iter=500, tol=1e-06, copy=True)
             self.mod.intercept_ = 0.0
         self.mod.fit(self.Xrel, self.Yrel)
         # now compute T with a random orthogonal basis
@@ -323,7 +351,8 @@ class Regression(object):
         w0 = w0 / np.linalg.norm(w0)
         Wcompl = null_space(w0)
         self.T = np.hstack((w0.transpose(), Wcompl))
-        assert np.allclose(self.T.transpose().dot(self.T), np.eye(self.T.shape[0])), "self.T not orthonormal."
+        assert np.allclose(self.T.transpose().dot(self.T), np.eye(
+            self.T.shape[0])), "self.T not orthonormal."
 
     def store(self, fname):
         """Stores the transformation in npy format.
@@ -370,7 +399,8 @@ class LexIndPredictor(object):
                 n = len(dim_weights)
                 score = 0.0
                 for i in range(n):
-                    score += dim_weights[i] * X_trafo[self.embeds.W.index(k), i]
+                    score += dim_weights[i] * \
+                        X_trafo[self.embeds.W.index(k), i]
             self.predictions.append((k, score))
 
     def store(self, fname):
@@ -389,20 +419,20 @@ class AnalogyPredictor(object):
     """Given an interpretable word space and queries, solve the word analogy task.
     """
 
-    def __init__(self, log, embeddings, analogies):
+    def __init__(self, log, embeddings, analogies, donotfilter=False):
         """Initialize the predictor.
 
         Args:
             log: logger object
             embeddings: word embedding object
             analogies: list of analogy pairs on which to train the predictor
+            donotfilter: if false, consider only analogy pairs where query and answer are contained in the embeddings
         """
         self.log = log
         self.embeds = embeddings
-        self.ana = self.filter_analogies(analogies)
-        self.get_lexicon()
+        self.ana = self.filter_analogies(analogies, donotfilter)
 
-    def get_lexicon(self):
+    def get_lexicon(self, remove_words=set()):
         """Prepare the training data.
 
         Converts the analogy pairs into a lexicon
@@ -412,15 +442,22 @@ class AnalogyPredictor(object):
         self.lex.version = 'countable'
         self.lex.L['countable'] = []
         for tup in self.ana:
-            self.lex.L['countable'].append((tup[0], 1))
-            self.lex.L['countable'].append((tup[1][0], -1))
+            if tup[0] not in remove_words:
+                self.lex.L['countable'].append((tup[0], 1))
 
-    def fit_classifier(self, modeltype, model):
+            # Just use the first word for training.
+            for w in tup[1]:
+                if w not in remove_words:
+                    self.lex.L['countable'].append((w, -1))
+                break
+
+    def fit_classifier(self, modeltype, model, add_lr_classifier=False):
         """Fit the chosen model.
 
         Args:
             modeltype: "regression" or "densray"
             model: for "densray" one in ["binary", "continuous"]; for "regression" one in ["logistic", "svm", "linear", "svr", "cca"]
+            add_lr_classifier: whether to add an additional logistic regression to get probabilistic scores.
         """
         if modeltype == "regression":
             trafo = Regression(self.log, self.embeds, self.lex)
@@ -433,20 +470,36 @@ class AnalogyPredictor(object):
                 self.scores_prob = None
         elif modeltype == "densray":
             trafo = DensRay(self.log, self.embeds, self.lex)
-            trafo.fit(weights=None, model=model, normalize_D=True, normalize_labels=False)
+            trafo.fit(weights=None, model=model,
+                      normalize_D=True, normalize_labels=False)
             T = trafo.T
             self.scores_prob = None
 
         X_trafo = self.embeds.X.dot(T)
+        self.X_trafo = X_trafo
         scores = X_trafo[:, 0]
         self.X_compl = X_trafo[:, 1:]
+
+        add_lr_classifier = True
+        if add_lr_classifier:
+            aux_embeds = Embeddings(self.log)
+            aux_embeds.W = self.embeds.W
+            aux_embeds.Wset = self.embeds.Wset
+            aux_embeds.X = X_trafo[:, 0:1]
+
+            aux_trafo = Regression(self.log, aux_embeds, self.lex)
+            aux_trafo.prepare_data("logistic")
+            aux_trafo.fit("logistic")
+            self.scores_prob = aux_trafo.mod.predict_proba(aux_embeds.X)[:, 0]
+
         # potentially invert scores
         sc0 = scores[self.embeds.W.index(self.ana[0][0])]
         sc1 = scores[self.embeds.W.index(self.ana[0][1][0])]
         if sc0 > sc1:
             scores = -scores
         # normalize
-        self.scores = (scores - scores.min()) / (scores.max() - scores.min())
+        self.scores = (scores - scores.min()) / \
+            (scores.max() - scores.min())
 
     def predict(self, queries, method=None, use_compl=None, use_prob=None):
         """Given queries, complete the analogies.
@@ -514,16 +567,17 @@ class AnalogyPredictor(object):
         """
         return pair[0] in self.embeds.Wset and pair[1][0] in self.embeds.Wset
 
-    def filter_analogies(self, analogies):
+    def filter_analogies(self, analogies, donotfilter):
         """Filters a list of analogies for answerability.
 
         Args:
             analogies: list of analogy pairs in the BATS format
+            donotfilter: if false, consider only analogy pairs where query and answer are contained in the embeddings
 
         Returns:
             filtered list of analogy pairs in the BATS format
         """
-        return [pair for pair in analogies if self.is_answerable(pair)]
+        return [pair for pair in analogies if self.is_answerable(pair) or donotfilter]
 
     def get_distances(self):
         """Provides some analysis for the training analogies.

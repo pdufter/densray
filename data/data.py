@@ -450,3 +450,18 @@ class Bats(object):
             # transform the data
             self.tuples[chapter] = [(bw2truew[w1], tuple([bw2truew[x] for x in w2])) for w1, w2 in self.tuples[chapter]]
             self.L[chapter] = [(bw2truew[k], v) for k, v in self.L[chapter]]
+
+    def store(self, path):
+        for chapter_path in self.chapter_paths:
+            subdir, chapter = chapter_path.split("/")
+            if not os.path.exists(os.path.join(path, subdir)):
+                os.mkdir(os.path.join(path, subdir))
+            with open(os.path.join(path, subdir, chapter), 'w') as fout:
+                for data in self.tuples[chapter]:
+                    fout.write(data[0])
+                    fout.write('\t')
+                    fout.write('/'.join(data[1]))
+                    fout.write('\n')
+
+
+
